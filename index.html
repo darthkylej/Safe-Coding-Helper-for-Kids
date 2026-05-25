@@ -334,6 +334,9 @@ const MAX_PAIRS  = 10;
 // Environment info stays client-side — it's returned as a tool result, never sent to the worker
 const ENVIRONMENT_INFO = `# Code Mentor — Editor & Preview Environment
 
+## CRITICAL CONSTRAINT — SINGLE FILE ONLY
+This editor supports EXACTLY ONE file. There is no file system. There are no tabs, no folders, no way to create or reference a second file. All HTML, CSS, and JavaScript must go in one single .html file. NEVER suggest splitting code into separate files (e.g. style.css, script.js, index.html). NEVER suggest "create a new file" or "in your CSS file" or "in your JS file". Everything must be inline in one document.
+
 ## What the Editor Is
 A single-file HTML editor. Everything — HTML structure, CSS styles, and JavaScript logic — lives in one file. The student writes one complete self-contained HTML document.
 
@@ -351,7 +354,7 @@ All three go in one file:
 
 ## What Does NOT Work
 - Server-side languages: no PHP, Python, Ruby, Node.js — there is no server
-- Multiple files: cannot reference a separate local .js, .css, or image file — everything must be inline or loaded from a URL
+- Multiple files: IMPOSSIBLE — there is only one file. Do not suggest creating separate .js, .css, or .html files under any circumstances. All code must be inline.
 - Relative file paths: <img src="photo.jpg"> will NOT work — there is no file system
 - import/export ES modules: won't work unless loading from a CDN that supports ESM (like esm.sh or skypack)
 - WebSockets to localhost, fetch to localhost APIs — no local server exists
