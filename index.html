@@ -752,7 +752,8 @@ async function sendMessage() {
 
     typingEl.remove();
     messages.push({ role: 'assistant', content: reply });
-    addBubble('assistant', reply);
+    const replyEl = addBubble('assistant', reply);
+    replyEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     if (messages.length >= MAX_PAIRS * 2) await compact();
 
@@ -820,6 +821,7 @@ function addBubble(role, text) {
   wrap.appendChild(av); wrap.appendChild(bubble);
   chat.appendChild(wrap);
   chat.scrollTop = chat.scrollHeight;
+  return wrap;
 }
 
 function showTyping() {
