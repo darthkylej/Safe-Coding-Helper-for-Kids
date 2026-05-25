@@ -857,7 +857,10 @@ function addSysMsg(text) {
 //  MARKDOWN
 // ═══════════════════════════════════════════════════════
 function md(text) {
+  // Closed code blocks
   text = text.replace(/```[\w]*\n?([\s\S]*?)```/g, (_, c) => `<pre><code>${esc(c.trim())}</code></pre>`);
+  // Unclosed code block at end of message (truncated response)
+  text = text.replace(/```[\w]*\n?([\s\S]+)$/, (_, c) => `<pre><code>${esc(c.trim())}</code></pre>`);
   text = text.replace(/`([^`]+)`/g, (_, c) => `<code>${esc(c)}</code>`);
   text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
