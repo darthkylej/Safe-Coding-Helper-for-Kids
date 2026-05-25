@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code Mentor</title>
+
+  <!-- CodeMirror -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closetag.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+
+  <!-- js-beautify -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.15.1/beautify-html.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f1117;
+      --surface:  #1a1d27;
+      --border:   #2a2d3a;
+      --accent:   #7c3aed;
+      --accent-h: #6d28d9;
+      --text:     #e8eaf0;
+      --muted:    #6b7280;
+      --green:    #10b981;
+      --red:      #ef4444;
+    }
+
+    html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+    body { display: flex; flex-direction: column; }
+
+    /* ── Header ──────────────────────────────────────────────── */
+    header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .logo { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+    .logo span { font-size: 20px; }
+    .logo h1   { font-size: 14px; font-weight: 700; color: #a78bfa; white-space: nowrap; }
+    .logo p    { font-size: 10px; color: var(--muted); }
+
+    .project-bar {
+      display: flex; align-items: center; gap: 7px;
+      flex: 1; min-width: 0;
+    }
+
+    #project-name {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+      padding: 4px 10px;
+      min-width: 0; flex: 1; max-width: 220px;
+      outline: none;
+    }
+    #project-name:focus { border-color: var(--accent); }
+
+    #save-dot {
+      font-size: 11px; color: var(--muted);
+      white-space: nowrap; flex-shrink: 0;
+      transition: color .3s;
+    }
+    #save-dot.saved  { color: var(--green); }
+    #save-dot.unsaved { color: #f59e0b; }
+
+    .header-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+    .btn {
+      background: var(--border); border: 1px solid #3a3d4a;
+      border-radius: 6px; color: var(--text);
+      font-size: 12px; padding: 5px 10px;
+      cursor: pointer; white-space: nowrap;
+      transition: background .15s;
+    }
+    .btn:hover { background: #353848; }
+    .btn.primary { background: var(--accent); border-color: var(--accent); }
+    .btn.primary:hover { background: var(--accent-h); }
+
+    /* ── Workspace ───────────────────────────────────────────── */
+    .workspace {
+      display: flex; flex: 0 0 55%; min-height: 0;
+      overflow: hidden; border-bottom: 2px solid var(--border);
+    }
+
+    .panel { display: flex; flex-direction: column; flex: 1; min-width: 0; overflow: hidden; }
+    .panel + .panel { border-left: 1px solid var(--border); }
+
+    .panel-header {
+      display: flex; align-items: center; gap: 7px;
+      padding: 5px 10px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      font-size: 11px; color: var(--muted); flex-shrink: 0;
+    }
+
+    .panel-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); opacity: .7; }
+    .panel-label { flex: 1; }
+
+    .fmt-btn {
+      background: transparent; border: 1px solid var(--border);
+      border-radius: 5px; color: #a78bfa;
+      font-size: 11px; padding: 2px 9px; cursor: pointer;
+      transition: background .15s, border-color .15s;
+    }
+    .fmt-btn:hover { background: #2a2d4a; border-color: var(--accent); }
+
+    /* CodeMirror */
+    #editor-container { flex: 1; overflow: hidden; position: relative; }
+    .CodeMirror {
+      position: absolute !important; inset: 0;
+      height: 100% !important;
+      font-family: 'Cascadia Code', 'Consolas', 'Courier New', monospace !important;
+      font-size: 13px !important; line-height: 1.65 !important;
+      background: #1e2030 !important;
+    }
+    .CodeMirror-scroll { padding-bottom: 20px; }
+    .CodeMirror-gutters { background: #191b2b !important; border-right: 1px solid var(--border) !important; }
+    .CodeMirror-linenumber { color: #4b5563 !important; }
+
+    #preview { flex: 1; border: none; background: #fff; width: 100%; }
+
+    /* ── Chat ────────────────────────────────────────────────── */
+    .chat-section { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+
+    #chat {
+      flex: 1; overflow-y: auto; padding: 11px 15px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+
+    .message { display: flex; gap: 8px; max-width: 880px; animation: fadeIn .18s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .message.user { align-self: flex-end; flex-direction: row-reverse; }
+
+    .avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+    .message.assistant .avatar { background: #312e81; }
+    .message.user      .avatar { background: #1f2937; }
+
+    .bubble { padding: 8px 12px; border-radius: 12px; font-size: 13px; line-height: 1.65; max-width: calc(100% - 34px); }
+    .message.assistant .bubble { background: #1e2130; border: 1px solid var(--border); border-top-left-radius: 3px; }
+    .message.user      .bubble { background: #312e81; border-top-right-radius: 3px; }
+    .bubble p { margin-bottom: 5px; }
+    .bubble p:last-child { margin-bottom: 0; }
+    .bubble pre { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px 10px; margin: 6px 0; overflow-x: auto; font-size: 12px; }
+    .bubble code { font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 12px; }
+    .bubble ul, .bubble ol { padding-left: 16px; margin: 3px 0; }
+    .bubble li { margin: 2px 0; }
+
+    .sys-msg { text-align: center; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .sys-msg::before, .sys-msg::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .code-badge { align-self: center; display: inline-flex; align-items: center; gap: 5px; background: #1e293b; border: 1px solid #334155; border-radius: 20px; padding: 3px 10px; font-size: 11px; color: #94a3b8; animation: fadeIn .2s ease; }
+
+    .typing { display: flex; gap: 4px; align-items: center; padding: 9px 12px; }
+    .typing span { width: 6px; height: 6px; background: var(--muted); border-radius: 50%; animation: bob 1.1s infinite; }
+    .typing span:nth-child(2) { animation-delay: .18s; }
+    .typing span:nth-child(3) { animation-delay: .36s; }
+    @keyframes bob { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-5px); } }
+
+    .input-bar { display: flex; gap: 8px; align-items: flex-end; padding: 9px 14px; background: var(--surface); border-top: 1px solid var(--border); flex-shrink: 0; }
+
+    #msg-input { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 13px; font-family: inherit; padding: 8px 12px; resize: none; outline: none; min-height: 38px; max-height: 100px; overflow-y: auto; line-height: 1.5; transition: border-color .2s; }
+    #msg-input:focus { border-color: var(--accent); }
+    #msg-input::placeholder { color: #4b5563; }
+
+    #send-btn { width: 36px; height: 36px; background: var(--accent); border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .15s, transform .1s; }
+    #send-btn:hover  { background: var(--accent-h); }
+    #send-btn:active { transform: scale(.93); }
+    #send-btn:disabled { background: #374151; cursor: not-allowed; transform: none; }
+    #send-btn svg { width: 16px; height: 16px; fill: white; }
+
+    /* ── Projects Modal ──────────────────────────────────────── */
+    #modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.65);
+      z-index: 100;
+      align-items: center; justify-content: center;
+    }
+    #modal-overlay.open { display: flex; }
+
+    #modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: 480px; max-width: 95vw;
+      max-height: 80vh;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 24px 60px rgba(0,0,0,.5);
+      animation: popIn .18s ease;
+    }
+    @keyframes popIn { from { opacity: 0; transform: scale(.95); } to { opacity: 1; transform: scale(1); } }
+
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .modal-header h2 { font-size: 16px; font-weight: 700; color: #a78bfa; }
+
+    .modal-close {
+      background: transparent; border: none;
+      color: var(--muted); font-size: 18px; cursor: pointer; line-height: 1;
+      padding: 0 4px; transition: color .15s;
+    }
+    .modal-close:hover { color: var(--text); }
+
+    #project-list { flex: 1; overflow-y: auto; padding: 10px 14px; }
+
+    .project-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 9px;
+      cursor: pointer; transition: background .15s;
+      border: 1px solid transparent;
+    }
+    .project-item:hover { background: #23273a; border-color: var(--border); }
+    .project-item.active { background: #1e1a38; border-color: var(--accent); }
+
+    .project-icon { font-size: 20px; flex-shrink: 0; }
+
+    .project-info { flex: 1; min-width: 0; }
+    .project-info .name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .project-info .meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .project-del {
+      background: transparent; border: 1px solid transparent;
+      border-radius: 6px; color: var(--muted);
+      font-size: 13px; padding: 4px 8px; cursor: pointer;
+      opacity: 0; transition: opacity .15s, background .15s, color .15s;
+      flex-shrink: 0;
+    }
+    .project-item:hover .project-del { opacity: 1; }
+    .project-del:hover { background: rgba(239,68,68,.15); border-color: rgba(239,68,68,.3); color: var(--red); }
+
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 13px; }
+    .empty-state .icon { font-size: 36px; margin-bottom: 10px; }
+
+    .modal-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      display: flex; gap: 8px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Projects modal -->
+<div id="modal-overlay" onclick="closeProjects()">
+  <div id="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2>📂 My Projects</h2>
+      <button class="modal-close" onclick="closeProjects()">✕</button>
+    </div>
+    <div id="project-list"></div>
+    <div class="modal-footer">
+      <button class="btn primary" onclick="newProject()">➕ New Project</button>
+      <button class="btn" onclick="closeProjects()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="logo">
+    <span>💻</span>
+    <div><h1>Code Mentor</h1><p>HTML · CSS · JavaScript</p></div>
+  </div>
+
+  <div class="project-bar">
+    <input id="project-name" type="text" placeholder="Project name…" spellcheck="false" />
+    <span id="save-dot">●</span>
+  </div>
+
+  <div class="header-actions">
+    <button class="btn" onclick="saveProject(true)">💾 Save</button>
+    <button class="btn" onclick="openProjects()">📂 Projects</button>
+    <button class="btn" onclick="downloadCode()">⬇️ Download</button>
+    <button class="btn" onclick="formatCode()">✨ Format</button>
+  </div>
+</header>
+
+<!-- Workspace -->
+<div class="workspace">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-dot"></div>
+      <span class="panel-label">Editor</span>
+    </div>
+    <div id="editor-container"></div>
+  </div>
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-dot" style="background:#10b981"></div>
+      <span class="panel-label">Preview</span>
+    </div>
+    <iframe id="preview"></iframe>
+  </div>
+</div>
+
+<!-- Chat -->
+<div class="chat-section">
+  <div id="chat"></div>
+  <div class="input-bar">
+    <textarea id="msg-input" rows="1" placeholder="Ask anything about your code or about HTML, CSS and JavaScript…"></textarea>
+    <button id="send-btn" onclick="sendMessage()">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════
+const WORKER_URL = 'https://patient-wood-4ba1.kylecluff.workers.dev/';   // ← paste your Cloudflare Worker URL here
+const MAX_PAIRS  = 10;
+
+// Environment info stays client-side — it's returned as a tool result, never sent to the worker
+const ENVIRONMENT_INFO = `# Code Mentor — Editor & Preview Environment
+
+## What the Editor Is
+A single-file HTML editor. Everything — HTML structure, CSS styles, and JavaScript logic — lives in one file. The student writes one complete self-contained HTML document.
+
+## How the Preview Works
+The preview is an iframe that renders the editor contents live using the srcdoc attribute. It updates automatically about 380ms after the student stops typing. There is no server — the code runs entirely in the browser. Each time the preview refreshes it restarts from scratch (variables reset, timers restart, etc.).
+
+## Supported Languages
+- HTML5 — full support
+- CSS3 / modern CSS — full support (Flexbox, Grid, custom properties, animations, transitions, media queries)
+- JavaScript ES6+ — full support (let/const, arrow functions, classes, promises, async/await, destructuring, modules via CDN)
+
+All three go in one file:
+- CSS inside <style> tags (usually in <head>)
+- JavaScript inside <script> tags (usually before <\/body>)
+
+## What Does NOT Work
+- Server-side languages: no PHP, Python, Ruby, Node.js — there is no server
+- Multiple files: cannot reference a separate local .js, .css, or image file — everything must be inline or loaded from a URL
+- Relative file paths: <img src="photo.jpg"> will NOT work — there is no file system
+- import/export ES modules: won't work unless loading from a CDN that supports ESM (like esm.sh or skypack)
+- WebSockets to localhost, fetch to localhost APIs — no local server exists
+
+## Images
+Local image files cannot be used. Options that DO work:
+1. External image URL: <img src="https://example.com/image.jpg">
+2. Placeholder images: https://picsum.photos/300/200 (random) or https://via.placeholder.com/300x200
+3. Emoji used decoratively in HTML
+4. CSS gradients and background-color instead of images
+5. Inline SVG shapes drawn directly in HTML
+6. Data URIs (base64-encoded) — advanced but works for small images
+
+## Loading Libraries via CDN
+Use <script src="..."> or <link rel="stylesheet" href="..."> with a CDN URL. All of cdnjs.cloudflare.com is accessible. Examples:
+- p5.js (creative/game coding, great for beginners): https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js
+- Three.js (3D): https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
+- Chart.js (charts/graphs): https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js
+- Animate.css: https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css
+- jQuery: https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
+- Tone.js (audio/music): https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js
+
+## Web APIs That Work Fully
+- Canvas API (2D drawing, games, animations)
+- Web Audio API (sound, music)
+- localStorage and sessionStorage (data persists across preview refreshes)
+- fetch() to public APIs that support CORS
+- requestAnimationFrame (smooth animations and game loops)
+- Geolocation (with browser permission prompt)
+- Speech Synthesis API (text to speech)
+- Pointer/touch/keyboard events
+
+## Fonts
+System fonts always work. For custom fonts use Google Fonts:
+<link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+Note: fonts.googleapis.com must be accessible — if it's blocked, use system fonts instead.
+
+## Standard File Structure
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Project<\/title>
+  <style>
+    \/* All CSS here *\/
+  <\/style>
+<\/head>
+<body>
+
+  <!-- All HTML here -->
+
+  <script>
+    \/\/ All JavaScript here
+  <\/script>
+<\/body>
+<\/html>
+
+## Common Beginner Mistakes in This Environment
+- Trying to load a local image file (use a URL instead)
+- Forgetting <!DOCTYPE html> (can cause layout quirks)
+- Putting <script> in <head> before the HTML elements exist (use defer or put scripts before <\/body>)
+- Using console.log() and wondering where it went (output goes to browser DevTools console, not visible in the preview — suggest using document.getElementById(...).textContent to display output instead)
+- Expecting the preview to remember state after editing (it resets on every refresh)`;
+
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+let editor;
+let messages    = [];
+let summary     = '';
+let thinking    = false;
+let previewTimer;
+let autoSaveTimer;
+let isDirty     = false;
+
+// Project state
+let projects    = [];   // [{id, name, code, messages, summary, savedAt}]
+let currentId   = null; // id of the currently open project
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  initEditor();
+  setupInput();
+  loadAllProjects();
+  updatePreview();
+});
+
+// ═══════════════════════════════════════════════════════
+//  EDITOR
+// ═══════════════════════════════════════════════════════
+function initEditor() {
+  editor = CodeMirror(document.getElementById('editor-container'), {
+    value: '',
+    mode: 'htmlmixed', theme: 'dracula',
+    lineNumbers: true, lineWrapping: false,
+    autoCloseTags: true, autoCloseBrackets: true,
+    matchBrackets: true, styleActiveLine: true,
+    tabSize: 2, indentWithTabs: false,
+    extraKeys: { Tab: 'indentMore', 'Shift-Tab': 'indentLess' }
+  });
+
+  editor.on('change', () => {
+    markDirty();
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(updatePreview, 380);
+    // Auto-save every 10s while editing
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(() => saveProject(false), 10000);
+  });
+
+  document.getElementById('project-name').addEventListener('input', markDirty);
+}
+
+function markDirty() {
+  if (!isDirty) {
+    isDirty = true;
+    const dot = document.getElementById('save-dot');
+    dot.textContent = '● unsaved';
+    dot.className = 'unsaved';
+  }
+}
+
+function markSaved() {
+  isDirty = false;
+  const dot = document.getElementById('save-dot');
+  dot.textContent = '● saved';
+  dot.className = 'saved';
+  setTimeout(() => {
+    dot.textContent = '●';
+    dot.className = '';
+  }, 2000);
+}
+
+// ═══════════════════════════════════════════════════════
+//  PREVIEW
+// ═══════════════════════════════════════════════════════
+function updatePreview() {
+  const code = editor ? editor.getValue().trim() : '';
+  document.getElementById('preview').srcdoc = code || `
+    <html><body style="margin:0;height:100vh;display:flex;align-items:center;
+    justify-content:center;background:#0d1117;color:#3a3d4a;
+    font-family:sans-serif;font-size:13px;text-align:center">
+    <div><div style="font-size:36px;margin-bottom:10px">🖥️</div>
+    <p>Preview appears here</p></div></body></html>`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  FORMAT
+// ═══════════════════════════════════════════════════════
+function formatCode() {
+  try {
+    const formatted = html_beautify(editor.getValue(), {
+      indent_size: 2, wrap_line_length: 100,
+      end_with_newline: true, preserve_newlines: true,
+      max_preserve_newlines: 2, indent_inner_html: true,
+      extra_liners: [], unformatted: [],
+      content_unformatted: ['script', 'style']
+    });
+    const cursor = editor.getCursor();
+    editor.setValue(formatted);
+    editor.setCursor(cursor);
+    editor.focus();
+  } catch {}
+}
+
+// ═══════════════════════════════════════════════════════
+//  PROJECT MANAGEMENT
+// ═══════════════════════════════════════════════════════
+function loadAllProjects() {
+  try {
+    projects  = JSON.parse(localStorage.getItem('cm_projects') || '[]');
+    currentId = localStorage.getItem('cm_current_id') || null;
+  } catch {
+    projects  = [];
+    currentId = null;
+  }
+
+  if (projects.length === 0) {
+    // First launch — create a default project
+    createDefaultProject();
+  } else {
+    const proj = projects.find(p => p.id === currentId) || projects[0];
+    openProject(proj, false);
+  }
+}
+
+function createDefaultProject() {
+  const proj = makeProject('My First Project', '');
+  projects.push(proj);
+  persistProjects();
+  openProject(proj, false);
+}
+
+function makeProject(name, code) {
+  return {
+    id:       'proj_' + Date.now(),
+    name:     name || 'Untitled',
+    code:     code || '',
+    messages: [],
+    summary:  '',
+    savedAt:  new Date().toISOString()
+  };
+}
+
+function openProject(proj, confirm_unsaved = true) {
+  if (confirm_unsaved && isDirty) {
+    if (!confirm('You have unsaved changes. Discard and open this project?')) return;
+  }
+
+  currentId = proj.id;
+  localStorage.setItem('cm_current_id', currentId);
+
+  // Load code
+  editor.setValue(proj.code || '');
+  document.getElementById('project-name').value = proj.name || '';
+
+  // Load chat
+  messages = proj.messages || [];
+  summary  = proj.summary  || '';
+  document.getElementById('chat').innerHTML = '';
+  if (messages.length > 0) {
+    addSysMsg('↩ ' + proj.name + ' loaded');
+    messages.forEach(m => addBubble(m.role, m.content));
+  } else {
+    greet();
+  }
+
+  isDirty = false;
+  document.getElementById('save-dot').textContent = '●';
+  document.getElementById('save-dot').className = '';
+
+  updatePreview();
+  closeProjects();
+}
+
+function saveProject(showFeedback = true) {
+  const name = document.getElementById('project-name').value.trim() || 'Untitled';
+  let proj = projects.find(p => p.id === currentId);
+
+  if (!proj) {
+    proj = makeProject(name, editor.getValue());
+    projects.push(proj);
+    currentId = proj.id;
+    localStorage.setItem('cm_current_id', currentId);
+  } else {
+    proj.name    = name;
+    proj.code    = editor.getValue();
+    proj.messages = messages;
+    proj.summary  = summary;
+    proj.savedAt  = new Date().toISOString();
+  }
+
+  persistProjects();
+  if (showFeedback) markSaved();
+}
+
+function newProject() {
+  if (isDirty) {
+    const choice = confirm('Save current project before starting a new one?');
+    if (choice) saveProject(false);
+  }
+  const name = prompt('Project name:', 'New Project');
+  if (name === null) return; // cancelled
+  const proj = makeProject(name || 'New Project', '');
+  projects.push(proj);
+  persistProjects();
+  openProject(proj, false);
+}
+
+function deleteProject(id, e) {
+  e.stopPropagation();
+  const proj = projects.find(p => p.id === id);
+  if (!proj) return;
+  if (!confirm(`Delete "${proj.name}"? This cannot be undone.`)) return;
+
+  projects = projects.filter(p => p.id !== id);
+  persistProjects();
+
+  if (currentId === id) {
+    // Open another project or create a fresh one
+    if (projects.length > 0) {
+      openProject(projects[0], false);
+    } else {
+      createDefaultProject();
+    }
+  }
+
+  renderProjectList();
+}
+
+function persistProjects() {
+  try { localStorage.setItem('cm_projects', JSON.stringify(projects)); } catch {}
+}
+
+// ═══════════════════════════════════════════════════════
+//  DOWNLOAD
+// ═══════════════════════════════════════════════════════
+function downloadCode() {
+  const code = editor.getValue();
+  if (!code.trim()) { alert('Nothing to download yet — write some code first!'); return; }
+  const name = (document.getElementById('project-name').value.trim() || 'my-project')
+    .replace(/[^a-zA-Z0-9_-]/g, '-') + '.html';
+  const blob = new Blob([code], { type: 'text/html' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════════════════════════════════════
+//  PROJECTS MODAL
+// ═══════════════════════════════════════════════════════
+function openProjects() {
+  renderProjectList();
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeProjects() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function renderProjectList() {
+  const list = document.getElementById('project-list');
+
+  if (projects.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">📄</div><p>No projects yet.<br>Click "New Project" to get started!</p></div>`;
+    return;
+  }
+
+  const sorted = [...projects].sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+
+  list.innerHTML = sorted.map(p => `
+    <div class="project-item ${p.id === currentId ? 'active' : ''}"
+         onclick="openProject(projects.find(x=>x.id==='${p.id}'))">
+      <div class="project-icon">📄</div>
+      <div class="project-info">
+        <div class="name">${esc(p.name)}</div>
+        <div class="meta">${timeAgo(p.savedAt)} · ${lineCount(p.code)} lines</div>
+      </div>
+      <button class="project-del" onclick="deleteProject('${p.id}', event)" title="Delete">🗑</button>
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+//  SEND MESSAGE
+// ═══════════════════════════════════════════════════════
+async function sendMessage() {
+  const input = document.getElementById('msg-input');
+  const text  = input.value.trim();
+  if (!text || thinking) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+
+  addBubble('user', text);
+  messages.push({ role: 'user', content: text });
+
+  if (messages.length > MAX_PAIRS * 2)
+    messages = messages.slice(messages.length - MAX_PAIRS * 2);
+
+  thinking = true;
+  document.getElementById('send-btn').disabled = true;
+  const typingEl = showTyping();
+
+  try {
+    let sendBuf  = messages.map(m => ({ role: m.role, content: m.content }));
+    let response = await callAPI(sendBuf, summary);
+
+    while (response.stop_reason === 'tool_use') {
+      const toolBlock = response.content.find(c => c.type === 'tool_use');
+      sendBuf.push({ role: 'assistant', content: response.content });
+
+      let toolResult = '';
+      if (toolBlock.name === 'get_student_code') {
+        const code = editor.getValue().trim();
+        const name = document.getElementById('project-name').value.trim() || 'code';
+        toolResult = code ? `[${name}]\n\`\`\`\n${code}\n\`\`\`` : 'The student has not written any code yet.';
+        document.getElementById('chat').insertBefore(codeBadge('🔍 Looking at ' + (name || 'your code') + '…'), typingEl);
+        document.getElementById('chat').scrollTop = 99999;
+      } else if (toolBlock.name === 'get_environment_info') {
+        toolResult = ENVIRONMENT_INFO;
+        document.getElementById('chat').insertBefore(codeBadge('🌐 Checking environment info…'), typingEl);
+        document.getElementById('chat').scrollTop = 99999;
+      }
+
+      sendBuf.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: toolBlock.id, content: toolResult }] });
+      response = await callAPI(sendBuf, summary);
+    }
+
+    const reply = (Array.isArray(response.content)
+      ? response.content.find(c => c.type === 'text')?.text
+      : response.content) || '(No response)';
+
+    typingEl.remove();
+    messages.push({ role: 'assistant', content: reply });
+    addBubble('assistant', reply);
+
+    if (messages.length >= MAX_PAIRS * 2) await compact();
+
+    // Auto-save chat into current project
+    saveProject(false);
+
+  } catch (err) {
+    typingEl.remove();
+    addBubble('assistant', `⚠️ Something went wrong: ${err.message}`);
+  }
+
+  thinking = false;
+  document.getElementById('send-btn').disabled = false;
+  document.getElementById('msg-input').focus();
+}
+
+// ═══════════════════════════════════════════════════════
+//  COMPACTION
+// ═══════════════════════════════════════════════════════
+async function compact() {
+  try {
+    const res = await callAPI(messages, '', 'compact');
+    summary  = (Array.isArray(res.content) ? res.content.find(c=>c.type==='text')?.text : res.content) || '';
+    messages = [];
+    addSysMsg('✨ Session context saved');
+  } catch {
+    messages = messages.slice(-MAX_PAIRS * 2);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  API  — all calls go to the Cloudflare Worker
+// ═══════════════════════════════════════════════════════
+async function callAPI(msgs, summary = '', mode = 'chat') {
+  const res = await fetch(WORKER_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ messages: msgs, summary, mode })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `API error ${res.status}`);
+  }
+  return res.json();
+}
+
+// ═══════════════════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════════════════
+function greet() {
+  addBubble('assistant',
+    "Hey! I'm **Code Mentor** 👋\n\nWrite your HTML, CSS and JavaScript in the editor — the preview updates live. Use **📂 Projects** to save and switch between projects, and **⬇️ Download** to save your code as a file.\n\nAsk me anything! When you ask about your project I'll look at your code automatically.");
+}
+
+function addBubble(role, text) {
+  const chat = document.getElementById('chat');
+  const wrap = document.createElement('div');
+  wrap.className = `message ${role}`;
+  const av = document.createElement('div');
+  av.className = 'avatar';
+  av.textContent = role === 'assistant' ? '🤖' : '🧑';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = md(text);
+  wrap.appendChild(av); wrap.appendChild(bubble);
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showTyping() {
+  const chat = document.getElementById('chat');
+  const wrap = document.createElement('div');
+  wrap.className = 'message assistant';
+  const av = document.createElement('div');
+  av.className = 'avatar'; av.textContent = '🤖';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  wrap.appendChild(av); wrap.appendChild(bubble);
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+  return wrap;
+}
+
+function codeBadge(text) {
+  const el = document.createElement('div');
+  el.className = 'code-badge';
+  el.textContent = text;
+  return el;
+}
+
+function addSysMsg(text) {
+  const el = document.createElement('div');
+  el.className = 'sys-msg'; el.textContent = text;
+  document.getElementById('chat').appendChild(el);
+  document.getElementById('chat').scrollTop = 99999;
+}
+
+// ═══════════════════════════════════════════════════════
+//  MARKDOWN
+// ═══════════════════════════════════════════════════════
+function md(text) {
+  text = text.replace(/```[\w]*\n?([\s\S]*?)```/g, (_, c) => `<pre><code>${esc(c.trim())}</code></pre>`);
+  text = text.replace(/`([^`]+)`/g, (_, c) => `<code>${esc(c)}</code>`);
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  text = text.split(/\n\n+/).map(p => {
+    p = p.trim();
+    if (!p || p.startsWith('<pre')) return p;
+    return `<p>${p.replace(/\n/g, '<br>')}</p>`;
+  }).join('');
+  return text;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ═══════════════════════════════════════════════════════
+//  INPUT SETUP
+// ═══════════════════════════════════════════════════════
+function setupInput() {
+  const el = document.getElementById('msg-input');
+  el.addEventListener('input', () => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; });
+  el.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+}
+
+// ═══════════════════════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════════════════════
+function timeAgo(iso) {
+  if (!iso) return 'never';
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1)  return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d === 1) return 'yesterday';
+  return `${d} days ago`;
+}
+
+function lineCount(code) {
+  if (!code) return 0;
+  return code.split('\n').length;
+}
+</script>
+</body>
+</html>
