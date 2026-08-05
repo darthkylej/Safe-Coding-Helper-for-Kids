@@ -90,6 +90,7 @@
     .btn:hover { background: #353848; }
     .btn.primary { background: var(--accent); border-color: var(--accent); }
     .btn.primary:hover { background: var(--accent-h); }
+    .btn.back { flex-shrink: 0; }
 
     /* ── Workspace ───────────────────────────────────────────── */
     .workspace {
@@ -277,6 +278,8 @@
 
 <!-- Header -->
 <header>
+  <button class="btn back" onclick="goToBridge()">← Bridge</button>
+
   <div class="logo">
     <span>💻</span>
     <div><h1>Code Mentor</h1><p>HTML · CSS · JavaScript</p></div>
@@ -612,6 +615,15 @@ function saveProject(showFeedback = true) {
 
   persistProjects();
   if (showFeedback) markSaved();
+}
+
+const BRIDGE_URL = 'https://darthkylej.github.io/cluff-learning/';
+
+function goToBridge() {
+  if (isDirty && confirm('Save current project before going back to the Bridge?')) {
+    saveProject(false);
+  }
+  location.href = BRIDGE_URL;
 }
 
 function newProject() {
